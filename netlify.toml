@@ -1,0 +1,37 @@
+import { supabase } from '@/integrations/supabase/client'
+import type { Appointment, NewAppointment } from '@/integrations/supabase/types'
+
+export async function createAppointment(input: NewAppointment) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .insert({ ...input, status: input.status ?? 'pending' })
+    .select()
+    .single()
+  if (error) throw error
+  return data as Appointment
+}
+
+export async function listAppointmentsByEmail(email: string) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('patient_email', email)
+    .order('appointment_date', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Appointment[]
+}
+
+export async function listAllAppointments(filters?: { date?: string; doctor?: string; status?: string }) {
+  let q = supabase.from('appointments').select('*').order('appointment_date', { ascending: false })
+  if (filters?.date) q = q.eq('appointment_date', filters.date)
+  if (filters?.doctor) q = q.eq('doctor', filters.doctor)
+  if (filters?.status) q = q.eq('status', filters.status)
+  const { data, error } = await q
+  if (error) throw error
+  return (data ?? []) as Appointment[]
+}
+
+export async function updateAppointmentStatus(id: string, status: Appointment['status']) {
+  const { error } = await supabase.from('appointments').update({ status }).eq('id', id)
+  if (error) throw error
+}
