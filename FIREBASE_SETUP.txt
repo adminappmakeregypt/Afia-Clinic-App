@@ -1,0 +1,38 @@
+Afia Clinic — Firebase setup
+============================
+
+1) Firebase Console → Authentication → Sign-in method
+   Enable "Anonymous" (required — the app signs in anonymously so Firestore
+   rules can require an authenticated user).
+
+2) Firebase Console → Firestore Database
+   Make sure a Firestore database exists (Native mode).
+
+3) Firestore Rules (Rules tab) — paste and Publish:
+
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /bookings/{id} {
+         allow read, create, update, delete: if request.auth != null;
+       }
+     }
+   }
+
+4) The "bookings" collection is created automatically the first time a
+   booking is saved — you do NOT need to create it manually.
+
+5) On GitHub Pages: make sure firebase-config.js and the three Firebase
+   SDK <script> tags are served over https (they are by default on
+   *.github.io).
+
+Debugging
+---------
+Open the browser DevTools Console on patient-home.html and clinic.html.
+Every Firestore call logs [Firestore] ... and every auth event logs
+[Auth] .... If a write fails, the error is alerted and logged.
+
+Common causes if bookings don't appear in Firestore:
+- Anonymous sign-in NOT enabled → "auth/admin-restricted-operation".
+- Firestore rules still in locked mode → "PERMISSION_DENIED".
+- Wrong projectId in firebase-config.js.
