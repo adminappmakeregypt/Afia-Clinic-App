@@ -1,0 +1,36 @@
+AFIA CLINIC — FIREBASE SETUP
+============================
+
+1) In each HTML page (index.html, login.html, patient.html, patient-home.html, clinic.html),
+   add these 3 <script> tags in the <head> BEFORE your existing app scripts:
+
+   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+   <script src="firebase-config.js"></script>
+
+2) In the Firebase Console:
+   - Enable Authentication → Sign-in method → Email/Password
+   - Create Firestore Database (start in "test mode" while developing)
+
+3) Available helpers (global) once firebase-config.js is loaded:
+     auth                       -> firebase.auth() instance
+     db                         -> firebase.firestore() instance
+     fbSaveBooking(booking)     -> saves booking, returns new id
+     fbLoadBookings()           -> returns array of bookings
+     fbUpdateBooking(id, data)  -> update a booking
+     fbDeleteBooking(id)        -> delete a booking
+
+4) Example — replace localStorage in patient-home.html:
+     // was: bookings.push(data); localStorage.setItem('bookings', JSON.stringify(bookings));
+     await fbSaveBooking(data);
+
+   Example — replace load() in clinic.html:
+     const bookings = await fbLoadBookings();
+
+SECURITY NOTE
+-------------
+The Firebase Web apiKey is a PUBLIC identifier — it is safe to ship in
+client-side code. Real security comes from Firestore Security Rules and
+Firebase Authentication. Before going live, tighten your Firestore rules
+so only authenticated clinic users can read/write bookings.
