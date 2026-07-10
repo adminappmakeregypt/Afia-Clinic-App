@@ -1,0 +1,62 @@
+============================================================
+Afia Clinic — Firebase setup (READ THIS FIRST)
+============================================================
+
+If the clinic page shows "جاري التحميل..." forever, or bookings never appear
+in Firestore, it's almost always ONE of these two things:
+
+  (A) Firestore Security Rules are blocking reads/writes
+  (B) The "bookings" collection is empty (nothing has been saved yet)
+
+Follow the steps below in order.
+
+------------------------------------------------------------
+STEP 1 — Create the Firestore database (once)
+------------------------------------------------------------
+Firebase Console -> Build -> Firestore Database -> Create database
+  * Start in TEST MODE
+  * Pick a location (e.g. eur3 or nam5)
+  * Click Enable
+
+------------------------------------------------------------
+STEP 2 — Paste these Security Rules (REQUIRED)
+------------------------------------------------------------
+Firebase Console -> Firestore Database -> Rules tab
+Replace everything with the block below and click "Publish":
+
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /bookings/{doc} {
+        allow read, write: if true;
+      }
+    }
+  }
+
+NOTE: This is open access for testing. Once the app works end-to-end
+we can tighten it (e.g. require Anonymous Auth or a real login).
+
+------------------------------------------------------------
+STEP 3 — (Optional) Enable Anonymous Sign-in
+------------------------------------------------------------
+Only needed if you later change the rules to `if request.auth != null`.
+Firebase Console -> Authentication -> Sign-in method
+-> Anonymous -> Enable -> Save
+
+------------------------------------------------------------
+STEP 4 — Test the app
+------------------------------------------------------------
+1. Open patient-home.html, book an appointment.
+   * You should see: "تم تأكيد الحجز بنجاح ✔"
+   * In Firestore Console -> Data tab, a "bookings" collection appears
+     with 1 document.
+2. Open clinic.html (login with karimaismail1998@gmail.com).
+   * You should now see the booking in the table.
+   * Edit/Delete buttons update Firestore in real time.
+
+------------------------------------------------------------
+If it STILL doesn't work — open browser DevTools -> Console
+------------------------------------------------------------
+Look for lines starting with [Firestore], [Auth], or [Boot].
+A "Missing or insufficient permissions" error means STEP 2 wasn't done
+(or rules weren't published).
