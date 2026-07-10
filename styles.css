@@ -1,0 +1,42 @@
+:root {
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --primary: #0d6efd;
+  --primary-hover: #0b5ed7;
+  --text: #1a2233;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --error: #dc2626;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+/* Auth */
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+.card h1 { margin: 0 0 4px; font-size: 24px; }
+.subtitle { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+label { display: block; font-size: 14px; margin: 12px 0 6px; }
+input { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; font-family: inherit; }
+input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+button { margin-top: 18px; width: 100%; background: var(--primary); color: #fff; border: 0; padding: 12px 14px; border-radius: 8px; font-size: 15px; cursor: pointer; font-family: inherit; }
+button:hover { background: var(--primary-hover); }
+button.ghost { width: auto; background: transparent; color: var(--text); border: 1px solid var(--border); padding: 8px 14px; }
+button.ghost:hover { background: #f1f5f9; }
+.error { color: var(--error); margin: 12px 0 0; font-size: 14px; min-height: 20px; }
+
+/* Admin */
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; background: #fff; border-bottom: 1px solid var(--border); }
+.topbar h1 { font-size: 18px; margin: 0; }
+.admin-wrap { padding: 24px; max-width: 1100px; margin: 0 auto; }
+.admin-wrap .card { max-width: none; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+.tile { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.tile h3 { margin: 0 0 6px; font-size: 16px; color: var(--primary); }
+.tile p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.choice-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+.choice-tile { display:flex; flex-direction:column; gap:6px; padding:20px; border:1px solid #e5e7eb; border-radius:12px; text-decoration:none; color:inherit; background:#fafafa; transition:all .15s; }
+.choice-tile:hover { background:#f3f4f6; border-color:#d1d5db; }
+.choice-title { font-weight:600; font-size:1.05rem; }
+@media (max-width:520px){ .choice-grid{ grid-template-columns:1fr; } }
