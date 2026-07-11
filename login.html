@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>تسجيل الدخول - العيادة الطبية</title>
+<link rel="stylesheet" href="styles.css" />
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<main class="auth-wrap">
+  <form class="auth-card" id="loginForm">
+    <img src="Afia_Logo.png" alt="Afia Clinic" class="logo" />
+    <h1>تسجيل الدخول</h1>
+    <p class="muted">الوصول مسموح للمشرف فقط</p>
+    <label for="email">البريد الإلكتروني</label>
+    <input id="email" name="email" type="email" autocomplete="email" required />
+    <label for="password">كلمة المرور</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required />
+    <button type="submit" id="submitBtn">دخول</button>
+    <p class="error" id="err" hidden></p>
+    <p class="muted"><a href="index.html">رجوع</a></p>
+  </form>
+</main>
+<script>
+  // If already signed in, jump straight to clinic page
+  auth.onAuthStateChanged(function(u){
+    if (u) location.replace('clinic.html');
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var err = document.getElementById('err');
+    var btn = document.getElementById('submitBtn');
+    err.hidden = true;
+    err.textContent = '';
+    btn.disabled = true;
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      location.href = 'clinic.html';
+    } catch (ex) {
+      console.error('[Auth] sign-in failed:', ex);
+      var msg = 'فشل تسجيل الدخول.';
+      if (ex.code === 'auth/invalid-credential' || ex.code === 'auth/wrong-password' || ex.code === 'auth/user-not-found') {
+        msg = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+      } else if (ex.code === 'auth/too-many-requests') {
+        msg = 'محاولات كثيرة. حاول لاحقًا.';
+      } else if (ex.code === 'auth/network-request-failed') {
+        msg = 'تعذر الاتصال بالإنترنت.';
+      } else if (ex.code === 'auth/operation-not-allowed') {
+        msg = 'تسجيل الدخول بالبريد وكلمة المرور غير مفعّل في Firebase Authentication.';
+      } else if (ex.message) {
+        msg += ' ' + ex.message;
+      }
+      err.textContent = msg;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
