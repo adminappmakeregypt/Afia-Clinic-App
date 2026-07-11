@@ -1,0 +1,74 @@
+========================================================================
+AFIA CLINIC APP - FIREBASE SETUP (Option A: Email + Password login)
+========================================================================
+
+The patient page (patient-home.html) does NOT log in — anyone can book.
+The clinic page (clinic.html) requires an email + password login using
+Firebase Authentication.
+
+------------------------------------------------------------------------
+STEP 1 - Create Firestore database (TEST MODE)
+------------------------------------------------------------------------
+Firebase Console -> Firestore Database -> Create database -> Start in
+TEST mode -> Choose region -> Enable.
+
+------------------------------------------------------------------------
+STEP 2 - Publish these Firestore Security Rules
+------------------------------------------------------------------------
+Firebase Console -> Firestore Database -> Rules tab -> paste EXACTLY:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /bookings/{doc} {
+      allow read, write: if true;
+    }
+  }
+}
+
+Click PUBLISH.
+
+(Patients can create bookings without logging in. The clinic page is
+protected by the Firebase Auth login screen, not by these rules.)
+
+------------------------------------------------------------------------
+STEP 3 - Enable Email/Password sign-in method
+------------------------------------------------------------------------
+Firebase Console -> Authentication -> Sign-in method
+-> click "Email/Password" -> toggle Enable -> Save.
+
+If you see "Error updating Email/Password":
+  1) Enable the Identity Toolkit API:
+     https://console.cloud.google.com/apis/library/identitytoolkit.googleapis.com?project=afiaclinicapp
+     Click ENABLE, then retry Save.
+  2) Confirm your Google account has Owner role at:
+     https://console.cloud.google.com/iam-admin/iam?project=afiaclinicapp
+  3) Try in an Incognito window with extensions disabled.
+
+------------------------------------------------------------------------
+STEP 4 - Create the clinic admin user
+------------------------------------------------------------------------
+Firebase Console -> Authentication -> Users tab -> Add user
+  Email:    karimaismail1998@gmail.com
+  Password: (choose a strong password)
+-> Add user.
+
+You can add more clinic staff the same way. Every user created here can
+log into clinic.html.
+
+------------------------------------------------------------------------
+STEP 5 - Test end-to-end
+------------------------------------------------------------------------
+1) Open patient-home.html, create a booking. No login is asked.
+   -> A document appears in Firestore -> bookings collection.
+2) Open index.html -> "دخول العيادة" -> login.html.
+   Enter the email + password from Step 4 -> you land on clinic.html
+   and see the booking.
+3) Click "تسجيل الخروج" -> returned to login.html (signed out).
+
+------------------------------------------------------------------------
+NOTE
+------------------------------------------------------------------------
+The firebase-config.js apiKey is a PUBLIC identifier (not a secret).
+Security is enforced by the Firestore rules above and by the Firebase
+Auth users list.
