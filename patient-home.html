@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>احجز موعدك</title>
+<link rel="stylesheet" href="styles.css" />
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body class="booking-bg">
+<header class="topbar">
+  <div class="topbar-brand">
+    <img src="Afia_Logo.png" alt="Afia Clinic" class="logo logo-sm" />
+  </div>
+  <div class="topbar-actions">
+    <span>حساب المريض</span>
+    <button id="logout" class="link">تسجيل الخروج</button>
+  </div>
+</header>
+<main class="auth-wrap">
+  <form class="card booking-card" id="bookingForm" novalidate>
+    <h1 class="booking-title">احجز موعدك</h1>
+    <div class="divider"></div>
+
+    <div class="field">
+      <span class="ficon">👤</span>
+      <input type="text" id="fullName" placeholder="أدخل اسمك الكامل" required />
+    </div>
+
+    <div class="field">
+      <span class="ficon">📞</span>
+      <input type="tel" id="phone" placeholder="أدخل رقم هاتفك" inputmode="tel" required />
+    </div>
+
+    <div class="field">
+      <span class="ficon">💼</span>
+      <select id="specialty" required>
+        <option value="">اختر التخصص</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <span class="ficon">🩺</span>
+      <select id="doctor" required disabled>
+        <option value="">اختر الطبيب</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <span class="ficon">📅</span>
+      <input type="date" id="date" required />
+    </div>
+
+    <div class="field">
+      <span class="ficon">🕐</span>
+      <select id="time" required disabled>
+        <option value="">اختر الموعد</option>
+      </select>
+    </div>
+
+    <p id="hint" class="muted"></p>
+    <p id="err" class="error"></p>
+    <button type="submit" id="submitBtn">تأكيد الحجز</button>
+  </form>
+</main>
+<script>
+  if (sessionStorage.getItem('patient_ok') !== '1') location.replace('patient.html');
+
+  // Fallback list — used only if manager hasn't added anything yet in Firestore.
+  const FALLBACK = {
+    "الطب النفسي": ["د/مها عبدالقادر"],
+    "الباطنة العامة": ["د/وليد عبدالنافع"],
+    "علاج الأورام": ["د/نفين محمود"],
+    "الروماتيزم و التأهيل": ["د/مي حسين"],
+    "التغذية العلاجية": ["د/أحمد الآنور"],
+    "الجلدية و التجميل": ["د/مها الجندي"],
+    "الأطفال": ["د/مروة عبدالفتاح", "د/وليد عبدالرحمن"],
+    "النساء و التوليد": ["د/ايهب فتوح", "د/ياسر كنانة", "د/ايمان ذكري"],
+    "جراحة": ["د/بلال الصفي", "د/عمرو محمد اسماعيل"]
+  };
+
+  const specSel = document.getElementById('specialty');
+  const docSel  = document.getElementById('doctor');
+  const dateEl  = document.getElementById('date');
+  const timeSel = document.getElementById('time');
+  const hint    = document.getElementById('hint');
+
+  // SPECS shape: [{name, days:[], slots:[], doctors:[{name, days:[], slots:[]}]}]
+  let SPECS = [];
+
+  async function loadSpecs(){
+    try{
+      const snap = await db.collection('specialties').orderBy('name').get();
+      SPECS = snap.docs.map(function(d){ return d.data(); });
+    }catch(e){ console.warn('specialties load failed, using fallback', e); SPECS = []; }
+    if (!SPECS.length){
+      SPECS = Object.keys(FALLBACK).map(function(name){
+        return { name, doctors: FALLBACK[name].map(function(n){return {name:n, schedule:{}};}) };
+      });
+    }
+    specSel.innerHTML = '<option value="">اختر التخصص</option>' +
+      SPECS.map(function(s){ return '<option>'+s.name+'</option>'; }).join('');
+  }
+
+  function currentSpec(){ return SPECS.find(function(s){return s.name===specSel.value;}); }
+  function currentDoc(){ const s=currentSpec(); if(!s) return null; return (s.doctors||[]).find(function(d){return d.name===docSel.value;}); }
+
+  specSel.addEventListener('change', function(){
+    const s = currentSpec();
+    docSel.innerHTML = '<option value="">اختر الطبيب</option>';
+    const list = (s && s.doctors) || [];
+    if (!list.length) {
+      docSel.disabled = true;
+      docSel.innerHTML = '<option value="">لا يوجد أطباء متاحون</option>';
+    } else {
+      docSel.disabled = false;
+      list.forEach(function(d){
+        const o = document.createElement('option'); o.value=d.name; o.textContent=d.name; docSel.appendChild(o);
+      });
+    }
+    refreshTimes();
+  });
+  docSel.addEventListener('change', refreshTimes);
+  dateEl.addEventListener('change', refreshTimes);
+
+  async function refreshTimes(){
+    hint.textContent=''; timeSel.innerHTML='<option value="">اختر الموعد</option>'; timeSel.disabled=true;
+    const s = currentSpec(); const d = currentDoc(); const date = dateEl.value;
+    if (!s || !d || !date) return;
+    const wd = new Date(date+'T00:00').getDay(); // 0=Sun..6=Sat
+    const names = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+    // Doctor weekly schedule: {0:[..],1:[..],...}
+    const schedule = d.schedule || {};
+    const slots = (schedule[wd] || []).slice();
+    if (!slots.length){
+      const workingDays = Object.keys(schedule).filter(function(k){ return (schedule[k]||[]).length; }).map(function(k){ return names[Number(k)]; });
+      if (workingDays.length){
+        hint.textContent = 'الطبيب لا يعمل يوم '+names[wd]+'. أيام العمل: '+workingDays.join('، ');
+      } else {
+        hint.textContent = 'لم يتم تحديد جدول لهذا الطبيب بعد. برجاء التواصل مع العيادة.';
+      }
+      return;
+    }
+    // Filter out slots already booked for this doctor+date
+    let taken = [];
+    try{
+      const snap = await db.collection('bookings')
+        .where('doctor','==',d.name).where('date','==',date).get();
+      taken = snap.docs.map(function(x){return (x.data().time||'');});
+    }catch(e){ console.warn('conflict check failed',e); }
+    const free = slots.filter(function(t){ return taken.indexOf(t)<0; });
+    if (!free.length){ hint.textContent='لا توجد مواعيد متاحة في هذا اليوم.'; return; }
+    free.forEach(function(t){ const o=document.createElement('option'); o.value=t; o.textContent=t; timeSel.appendChild(o); });
+    timeSel.disabled=false;
+  }
+
+  document.getElementById('phone').value = sessionStorage.getItem('patient_phone') || '';
+
+  document.getElementById('bookingForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const err = document.getElementById('err');
+    const btn = document.getElementById('submitBtn');
+    err.textContent = '';
+    const data = {
+      name: document.getElementById('fullName').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      specialty: specSel.value,
+      doctor: docSel.value,
+      date: dateEl.value,
+      time: timeSel.value
+    };
+    if (!data.name || !data.phone || !data.specialty || !data.doctor || !data.date || !data.time) {
+      err.textContent = 'يرجى تعبئة جميع الحقول.'; return;
+    }
+    btn.disabled = true;
+    try {
+      const dupSnap = await db.collection('bookings')
+        .where('phone', '==', data.phone)
+        .where('doctor', '==', data.doctor)
+        .where('date', '==', data.date)
+        .limit(1).get();
+      if (!dupSnap.empty) {
+        const dup = dupSnap.docs[0].data();
+        alert('انت بالفعل عند حجز اليوم مع ' + dup.doctor + ' و تاريخ ' + dup.date + ' و موعد الحجز ' + dup.time);
+        btn.disabled = false; return;
+      }
+      // Slot-taken check (race safety)
+      const clash = await db.collection('bookings')
+        .where('doctor','==',data.doctor).where('date','==',data.date).where('time','==',data.time).limit(1).get();
+      if (!clash.empty){
+        alert('هذا الموعد تم حجزه للتو من قبل مريض آخر. يرجى اختيار موعد آخر.');
+        await refreshTimes(); btn.disabled=false; return;
+      }
+      const id = await fbSaveBooking(data);
+      alert('تم تأكيد الحجز بنجاح ✔');
+      e.target.reset();
+      docSel.disabled = true;
+      docSel.innerHTML = '<option value="">اختر الطبيب</option>';
+      timeSel.disabled = true;
+      timeSel.innerHTML = '<option value="">اختر الموعد</option>';
+    } catch (ex) {
+      err.textContent = 'تعذر حفظ الحجز: ' + (ex && ex.message ? ex.message : ex);
+      alert('خطأ في حفظ الحجز إلى Firebase:\n' + (ex && ex.message ? ex.message : ex));
+    } finally { btn.disabled = false; }
+  });
+
+  document.getElementById('logout').addEventListener('click', function(){
+    sessionStorage.removeItem('patient_ok');
+    sessionStorage.removeItem('patient_phone');
+    location.href = 'index.html';
+  });
+
+  loadSpecs();
+</script>
+</body>
+</html>
